@@ -1,0 +1,143 @@
+library(tidyverse)
+library(shiny)
+
+
+# Load data
+metadat <- readxl::read_excel("Covid_data.xlsx")
+
+dat <- read.table("oscidat.txt", header = TRUE, sep = ",")
+# dat %>% str()
+
+# dat %>% select(age) %>% summary()
+
+# OSCI mapping to status
+dat2 <- dat %>% mutate(
+  status = case_when(
+    OSCI == 0 ~ "Fully recovered",
+    OSCI %in% c(1:2) ~ "Ambulatory mild disease",
+    OSCI %in% c(3:4) ~ "Hospitalized: moderate disease",
+    OSCI %in% c(5:7) ~ "Hospitalized: severe disease",
+    OSCI == 8 ~ "Deceased",
+    is.na(OSCI) ~ "Missing"
+  )
+  ,
+  age_groups = case_when(
+    age < 50 ~ "24-50",
+    age >= 50 ~ "> 50"
+  )
+)
+
+
+
+############# APP SECTION #################################
+#############
+
+ui <- fluidPage(
+  h4("OSCI-based clinical improvement for hospitalized patients with COVID-19 over a 35 days follow-up"),
+
+  sidebarLayout(
+    sidebarPanel(
+      radioButtons("filter",
+                   label = "Filter cohoort:",
+                   choices = c("yes", "no"),
+                   selected = "no"),
+
+      conditionalPanel(condition = "input.filter == 'yes'",
+                       selectInput("gender",
+                                   label = "Select patient's gender",
+                                   choices = unique(dat2$sex),
+                                   selected = "Male"),
+
+                       selectInput("age_range",
+                                   label = "Select patient's age range:",
+                                   choices = unique(dat2$age_groups),
+                                   selected = "24-50"
+                       )
+      ),
+      conditionalPanel(condition = "input.filter == 'no'",
+                       p("The entire cohoort is shown")),
+
+
+      radioButtons("plot_scale",
+                   label = "Select Y-axis scale of the output plot:",
+                   choices = c("Stacked percentage",
+                               "Percentage"),
+                   selected = "Stacked percentage")
+    ),
+
+    mainPanel(
+      plotOutput("mainplot"),
+
+      br(), br(), br(),
+      textOutput("plot_comment")
+    )
+  )
+)
+
+
+server <- function(input, output) {
+
+
+  rdat <- reactive(
+    {
+      if (input$filter == "yes")
+      {
+        dat2 %>%
+          filter(age_groups == input$age_range) %>%
+          arrange(day) %>%
+          group_by(arm, day, sex) %>%
+          count(status) %>%
+          mutate(perc = 100*n/sum(n)) %>%
+          filter(sex == input$gender)
+      }
+      else
+      {
+        dat2 %>%
+          arrange(day) %>%
+          group_by(arm, day) %>%
+          count(status) %>%
+          mutate(perc = 100*n/sum(n))
+      }
+
+    }
+  )
+
+  output$mainplot <- renderPlot(
+    {
+      if (input$plot_scale == "Stacked percentage")
+      {
+        ggplot(rdat(),
+               aes(x=day, y=perc,
+                   fill=status)) +
+          facet_wrap(~arm) +
+          geom_area(alpha=0.6,
+                    size=0.5,
+                    colour="black") +
+          ylab("Stacked percentage")
+      }
+      else
+      {
+        ggplot(rdat(),
+               aes(x=day, y=perc,
+                   group = status,
+                   color=status)) +
+          facet_wrap(~arm) +
+          geom_line(size = 1.5) +
+          ylab("Percentage")
+      }
+    }
+  )
+
+  output$plot_comment <- renderText(
+    {
+      if (input$plot_scale == "Percentage")
+        "Note: at each day the status percentages sums up to 100."
+      else
+        "Note: at each day the status percentages stacks up to 100."
+
+    }
+  )
+}
+
+
+shinyApp(ui, server)
