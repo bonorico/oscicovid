@@ -13,4 +13,4 @@ Describe the treatment effect specifically taking into account the number and ti
 
 
 ## Run
-Directly from your R session `runGitHub("oscicovid", username = "bonorico")`. Or clone repo and `shiny::runApp()`. 
+Directly from your R session `shiny::runGitHub("oscicovid", username = "bonorico")`. Or clone repo and `shiny::runApp()`. 
