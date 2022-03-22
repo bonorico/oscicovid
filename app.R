@@ -25,8 +25,17 @@ dat2 <- dat %>% mutate(
     age < 50 ~ "24-50",
     age >= 50 ~ "> 50"
   )
-)
-
+) %>%
+  # reorder status level from best to worst clinical status
+  mutate(status = fct_relevel(
+    as.factor(status),
+    "Fully recovered"
+  ) ) %>%
+  mutate(status = fct_relevel(
+    status,
+    "Deceased",
+    after = 4
+  ))
 
 
 ############# APP SECTION #################################
@@ -48,11 +57,17 @@ ui <- fluidPage(
                                    choices = unique(dat2$sex),
                                    selected = "Male"),
 
-                       selectInput("age_range",
+                       # selectInput("age_range",
+                       #             label = "Select patient's age range:",
+                       #             choices = unique(dat2$age_groups),
+                       #             selected = "24-50"
+                       # )
+                       sliderInput("age_range",
                                    label = "Select patient's age range:",
-                                   choices = unique(dat2$age_groups),
-                                   selected = "24-50"
-                       )
+                                   min = min(dat2$age),
+                                   max = max(dat2$age),
+                                   value = c(25, 50)
+                                   )
       ),
       conditionalPanel(condition = "input.filter == 'no'",
                        p("The entire cohoort is shown")),
@@ -83,7 +98,8 @@ server <- function(input, output) {
       if (input$filter == "yes")
       {
         dat2 %>%
-          filter(age_groups == input$age_range) %>%
+          #filter(age_groups == input$age_range) %>%
+          filter(age >= input$age_range[1] & age <= input$age_range[2]) %>%
           arrange(day) %>%
           group_by(arm, day, sex) %>%
           count(status) %>%
