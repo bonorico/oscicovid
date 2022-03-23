@@ -12,5 +12,5 @@
 Describe the treatment effect specifically taking into account the number and timing of patients who died, left the hospital or fully recovered.
 
 
-## Run
-Directly from your R session `shiny::runGitHub("oscicovid", username = "bonorico")`. Or clone repo and `shiny::runApp()`. 
+## Result
+Directly use the [app](https://bonorico.shinyapps.io/oscicovid/).
