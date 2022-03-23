@@ -34,7 +34,7 @@ dat2 <- dat %>% mutate(
   mutate(status = fct_relevel(
     status,
     "Deceased",
-    after = 4
+    after = 1
   ))
 
 
