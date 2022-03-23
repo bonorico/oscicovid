@@ -25,8 +25,17 @@ dat2 <- dat %>% mutate(
     age < 50 ~ "24-50",
     age >= 50 ~ "> 50"
   )
-)
-
+) %>%
+  # reorder status level from best to worst clinical status
+  mutate(status = fct_relevel(
+    as.factor(status),
+    "Fully recovered"
+  ) ) %>%
+  mutate(status = fct_relevel(
+    status,
+    "Deceased",
+    after = 4
+  ))
 
 
 ############# APP SECTION #################################
@@ -34,6 +43,7 @@ dat2 <- dat %>% mutate(
 
 ui <- fluidPage(
   h4("OSCI-based clinical improvement for hospitalized patients with COVID-19 over a 35 days follow-up"),
+  h6("Author: Federico Bonofiglio"),
 
   sidebarLayout(
     sidebarPanel(
@@ -48,11 +58,12 @@ ui <- fluidPage(
                                    choices = unique(dat2$sex),
                                    selected = "Male"),
 
-                       selectInput("age_range",
+                       sliderInput("age_range",
                                    label = "Select patient's age range:",
-                                   choices = unique(dat2$age_groups),
-                                   selected = "24-50"
-                       )
+                                   min = min(dat2$age),
+                                   max = max(dat2$age),
+                                   value = c(25, 50)
+                                   )
       ),
       conditionalPanel(condition = "input.filter == 'no'",
                        p("The entire cohoort is shown")),
@@ -62,8 +73,19 @@ ui <- fluidPage(
                    label = "Select Y-axis scale of the output plot:",
                    choices = c("Stacked percentage",
                                "Percentage"),
-                   selected = "Stacked percentage")
-    ),
+                   selected = "Stacked percentage"),
+
+      # conditionalPanel(condition = "input.plot_scale == 'Stacked percentage'",
+      #                  h5(" ")
+      #                  ),
+      conditionalPanel(condition = "input.plot_scale == 'Percentage'" ,
+                        radioButtons("group_panel",
+                                     label = "Group by:",
+                                     choices = c("status", "arm"),
+                                     selected = "status"
+                        )
+                        )
+      ),
 
     mainPanel(
       plotOutput("mainplot"),
@@ -72,7 +94,9 @@ ui <- fluidPage(
       textOutput("plot_comment")
     )
   )
+
 )
+
 
 
 server <- function(input, output) {
@@ -83,7 +107,7 @@ server <- function(input, output) {
       if (input$filter == "yes")
       {
         dat2 %>%
-          filter(age_groups == input$age_range) %>%
+          filter(age >= input$age_range[1] & age <= input$age_range[2]) %>%
           arrange(day) %>%
           group_by(arm, day, sex) %>%
           count(status) %>%
@@ -117,13 +141,27 @@ server <- function(input, output) {
       }
       else
       {
-        ggplot(rdat(),
-               aes(x=day, y=perc,
-                   group = status,
-                   color=status)) +
-          facet_wrap(~arm) +
+        if (input$group_panel == "status")
+        {
+          ggplot(rdat(),
+                 aes(x=day, y=perc,
+                     group = status,
+                     color=status)) +
+            facet_wrap(~arm) +
+            geom_line(size = 1.5) +
+            ylab("Percentage")
+        }
+        else
+        {
+          ggplot(rdat(),
+                 aes(x=day, y=perc,
+                     group = arm,
+                     color=arm)) +
+            facet_wrap(~status) +
           geom_line(size = 1.5) +
-          ylab("Percentage")
+            ylab("Percentage")
+        }
+
       }
     }
   )
@@ -131,7 +169,13 @@ server <- function(input, output) {
   output$plot_comment <- renderText(
     {
       if (input$plot_scale == "Percentage")
-        "Note: at each day the status percentages sums up to 100."
+      {
+        if (input$group_panel == "status")
+          "Note: at each day the status percentages sums up to 100."
+        else
+          "Note: shown are absolute percentages in each arm (e.g., at each day status percentages do not sum up to 100.)"
+
+      }
       else
         "Note: at each day the status percentages stacks up to 100."
 
