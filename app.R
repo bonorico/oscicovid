@@ -1,3 +1,5 @@
+# for re-deployment after any local change you might also opt for https://community.rstudio.com/t/edit-app-source-code-in-shinyapps-io-without-redeploying/53720/2
+
 library(tidyverse)
 library(shiny)
 
