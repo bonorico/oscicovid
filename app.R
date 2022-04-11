@@ -40,6 +40,8 @@ dat2 <- dat %>% mutate(
   ))
 
 
+
+
 ############# APP SECTION #################################
 #############
 
@@ -50,7 +52,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       radioButtons("filter",
-                   label = "Filter cohoort:",
+                   label = "Filter cohort:",
                    choices = c("yes", "no"),
                    selected = "no"),
 
@@ -68,7 +70,7 @@ ui <- fluidPage(
                                    )
       ),
       conditionalPanel(condition = "input.filter == 'no'",
-                       p("The entire cohoort is shown")),
+                       p("The entire cohort is shown")),
 
 
       radioButtons("plot_scale",
@@ -77,23 +79,30 @@ ui <- fluidPage(
                                "Percentage"),
                    selected = "Stacked percentage"),
 
-      # conditionalPanel(condition = "input.plot_scale == 'Stacked percentage'",
-      #                  h5(" ")
-      #                  ),
       conditionalPanel(condition = "input.plot_scale == 'Percentage'" ,
                         radioButtons("group_panel",
                                      label = "Group by:",
                                      choices = c("status", "arm"),
                                      selected = "status"
                         )
-                        )
+                        ),
+
+      br(), br(), br(),
+
+      h5("Legend*"),
+      tableOutput("legend")
       ),
 
     mainPanel(
       plotOutput("mainplot"),
 
       br(), br(), br(),
-      textOutput("plot_comment")
+      textOutput("plot_comment"),
+      br(),
+      textOutput("legend_comment")
+
+
+
     )
   )
 
@@ -183,6 +192,19 @@ server <- function(input, output) {
 
     }
   )
+
+  output$legend_comment <- renderText(
+    {
+      "*OSCI mapping is intentionally plotted in a different order to emphasize status 'deceased'."
+    }
+  )
+  output$legend <- renderTable(
+    {
+      dat2 %>% distinct(OSCI, status) %>% arrange(OSCI)
+    }
+  )
+
+
 }
 
 
